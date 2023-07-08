@@ -1,17 +1,21 @@
 % Process spike-detected MEA data output from MEA-NAP for reservoir
-% computing analysis, Visualise network responses used for reservoir
-% computing tasks with heatmaps, PSTHs, distance plots...
+% computing analysis
+%   - Get and/or merge spike time variables
+%   - Get evoked activity (spike counts/spike rates) within defined window
+%       for reservoir computing analysis
+%   - Visualise evoked activity: PSTHs, trial-stacked raster plots,
+%       heatmaps
 
 % Created: Elise Chang, February 2023
 
 %% Set parameters and import metadata
 
-homeDir = ("D:\MATLAB\MPhil_scripts\stimulation_tasks\Mona");
+homeDir = ("D:\MATLAB\MPhil_scripts\MEA-RC");
 cd(homeDir)
-metadataSpreadsheet = "OWT.xlsx";
+metadataSpreadsheet = "exampleMEA-RCMetadata.xlsx";
 spikeDir = fullfile(homeDir,"spikes"); % 'E:\spikes';
-stateVar = 'spike_rates'; % spike_rates
-window = '420-500'; % '3-20';
+stateVar = 'spike_rates'; % spike_counts
+window = ''; % '3-20';
 outputDir = fullfile('C:\Users\elise\conn2res\data\MEA\MEA-Mecp2_Mona_stim_dataset_conn2res',stateVar, window);
 
 % Metadata
@@ -32,10 +36,10 @@ addpath network_response\
 addpath("D:\MATLAB\MPhil_scripts\MEA-NAP\Functions")
 
 % Parameters for segmenting recording into trials
-trialsN = 60; % number of stimuli delivered TTX recordings = 12
+trialsN = 60; % number of stimuli delivered; TTX recordings = 12
 channelsN = 60;
-fs = 25e3;
-ISI = 5*fs; % inter-stimulus interval
+fs = 25e3; % sampling frequency
+ISI = 5*fs; % inter-stimulus interval in frames
 
 stimLength = 5; % number of frames
 lostTime = 0e-3*fs; % in frames -- time removed due to stimulus artifacts and early response component
