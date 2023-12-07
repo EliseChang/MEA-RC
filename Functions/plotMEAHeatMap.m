@@ -1,9 +1,19 @@
-function t = plotMEAHeatMap(dat1,dat2,stimNode1,stimNode2,pairName,metric) 
+function t = plotMEAHeatMap(dat1,dat2,removeElecs,metric,subtitles,minVal,maxVal) 
 %Input = any metric e.g. latency, fr , AC for 60 electrodes from the MEA
 %recordings 1x60
 %options: lat for latency (ms post stim) ;counts (mean spike count),
 %p (ppt firing ), AC (average controllablity)
 %adapted from makeHeatMap_AD by Alex Dunn
+arguments
+    dat1
+    dat2
+    removeElecs
+    metric
+    subtitles = [];
+    minVal = [];
+    maxVal = [];
+end
+
 
 figure("Position",[100, 100, 1500, 750])
 t = tiledlayout(1,2,'TileSpacing','Compact');
@@ -23,14 +33,14 @@ template(1, 8) = NaN;
 template(8, 1) = NaN;
 template(8, 8) = NaN;
 
-dat1([stimNode1,15]) = NaN;
+dat1(removeElecs) = NaN;
 dat1 = dat1(pltIndex);
 heatMatrix1 = template;
 heatMatrix1(2:7) = dat1(1:6);
 heatMatrix1(9:56) = dat1(7:54); 
 heatMatrix1(58:63) = dat1(55:60);
 
-dat2([stimNode2,15]) = NaN;
+dat2(removeElecs) = NaN;
 dat2 = dat2(pltIndex);
 heatMatrix2 = template;
 heatMatrix2(2:7) = dat2(1:6);
@@ -38,43 +48,62 @@ heatMatrix2(9:56) = dat2(7:54);
 heatMatrix2(58:63) = dat2(55:60);
 
 h(1) = nexttile(t);
+% plot grid
 hm = imagesc(heatMatrix1); 
 set(hm, 'AlphaData', ~isnan(heatMatrix1))
 aesthetics
-title("Pattern A")
+if ~isempty(subtitles) && numel(subtitles) == 2
+    title(subtitles(1), FontSize=16)
+end
+h(1).XAxis.Visible = 'off';
+h(1).YAxis.Visible = 'off';
+% title("Pre-stim")
 
 h(2) = nexttile(t);
+% plot grid
 hm = imagesc(heatMatrix2); 
 set(hm, 'AlphaData', ~isnan(heatMatrix2))
 aesthetics
-title("Pattern B")
+% title("Post-stim")
+if ~isempty(subtitles) && numel(subtitles) == 2
+    title(subtitles(2), FontSize=16)
+end
+h(2).XAxis.Visible = 'off';
+h(2).YAxis.Visible = 'off';
 
-title(t, strcat(pairName,"_heatmap"),'FontSize',28)
-cmin = min([dat1,dat2]);
-cmax = max([dat1,dat2]);
+% title(t, strcat(pairName,"_heatmap"),'FontSize',28)
+
+if ~isempty(minVal) && ~isempty(maxVal)
+    cmin = minVal;
+    cmax = maxVal;
+else
+    cmin = min([dat1,dat2],[],'all');
+    cmax = max([dat1,dat2],[],'all');
+end
 set(h, 'Colormap', parula, 'CLim', [cmin cmax])
 
 % Set colour bar properties
 cb = colorbar;
 if strcmp(metric, 'AC')
      ylabel(cb, 'Average Controllability')
-elseif strcmp(metric, 'lat') 
-    ylabel(cb, 'AP latency post stimulation (ms)')
+elseif strcmp(metric, 'latency') 
+    ylabel(cb, 'Latency post-stimulation (ms)')
 elseif strcmp(metric, 'FR') 
     ylabel(cb, 'Spike rate (Hz)')
 elseif strcmp(metric, 'p')
     %ylabel(cb, 'Log10 spike count')   
     ylabel(cb, 'Probablility of firing')
-    ylimit_cbar = 1;
-    caxis([0,ylimit_cbar])
-elseif strcmp(metric,'foldChange')
+%     ylimit_cbar = 1;
+%     caxis([0,ylimit_cbar])
+elseif strcmp(metric,'foldChangeStim')
     ylabel(cb,'Fold change in firing rate vs baseline')
-elseif strcmp(metric, 'counts')
+elseif strcmp(metric,'foldChangePostStim')
+    ylabel(cb,'Fold change in firing rate post- vs pre-stim')
+elseif strcmp(metric, 'spike_count')
     %ylabel(cb, 'Log10 spike count')   
-    ylabel(cb, 'Spike Counts post stimulation')
-    ylimit_cbar = 25; %change if needed
-    caxis([0,ylimit_cbar])
+    ylabel(cb, 'Mean spike counts')
 end
+    cb.FontSize = 16;
    cb.TickDirection = 'out';
 %     cb.Location = 'Southoutside';
     cb.Box = 'off';

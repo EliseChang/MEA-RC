@@ -1,57 +1,97 @@
-function  [ph,counts] = psth(times, binsize, fs, ntrials, triallen, varargin)
-% PSTH Computes the peri-stimulus time histogram from spike times.
-% The routine plots the trial averaged spike rate as a function of time.
-% H = PSTH(TIMES, BINSIZE, FS,NTRIALS,TRIALLEN)
-% H = PSTH(TIMES, BINSIZE, FS,NTRIALS,TRIALLEN ,AXESHANDLE)
-% TIMES - spike times (samples)
-% BINSIZE - binwidth (ms)
-% FS - sampling rate (hz)
-% NTRIALS - number of trials
-% TRIALLEN - length of a trial (samples)
-% H - plot handle
-%
-% An example:
-% %spike times can be specified in continuous time 
-% %here we have 3 trials and a trial length of 1000 samples
-% t = [10, 250, 900, 1300, 1600, 2405, 2900];
-%
-% %the same spike times can also be specified per trial
-% t2 =[10, 250, 900, 300, 600, 405, 900];
-% r = psth(t,10,1000,3,1000) ;
-% r2 = psth(t2,10,1000,3,1000);
-%
-% Author: Rajiv Narayan
-% askrajiv@gmail.com
-% Boston University, Boston, MA
+function t = psth(data, var, stimProt, binSize, baseline)
+% binSize: ms
+% baselineRate: Hz
 
-h_color ='k';
-nin=nargin;
+figure('Position', [100, 100, 1500, 750])
+t = tiledlayout(1, 2, 'TileSpacing','Compact');
 
-error(nargchk(5,6, nin));
+maskA = logical(stimProt);
+maskB = logical(~stimProt);
 
-switch(nin)
- 
- case 5 %no plot handle
-  figure;
-  h=gca;
-  
- case 6
-  if(ishandle(varargin{1}))
-    h=varargin{1};
-  else
-    error('Invalid Plot handle');
-  end
-
+if strcmp(var, 'spike_prob')
+    plotBaseline = baseline * binSize;
+else
+    plotBaseline = baseline*binSize*1e-3;
 end
 
-%Compute PSTH        
-lastBin = binsize * ceil((triallen-1)*(1000/(fs*binsize)));
-edges = 0 : binsize : lastBin;	
-x = (mod(times-1,triallen)+1)*(1000/fs); % converts times from frames to bin units e.g. to ms for 1 ms bins
-counts = histc(x,edges) / (ntrials*binsize);
 
-%Plot histogram        
-axes(h);
-ph=bar(edges(1:end-1),counts(1:end-1),'histc');
-set(ph,'edgecolor',h_color,'facecolor',h_color);
+%% Plot Pattern A
+ax1 = nexttile;
+trials = data(maskA,:);
+if strcmp(var, 'spike_prob')
+    trials = trials > 0;
+end
+histData = mean(trials,1);
+cvData = std(trials,1) ./ histData;
 
+yyaxis left
+psth = bar(histData, 1); % bars touching
+set(psth,'edgecolor','black','facecolor',"#0072BD");
+xticklabels(xticks*binSize)
+if strcmp(var, 'spike_prob')
+    ylabel("Spike probability")
+else
+    ylabel("Mean network spike count across trials")
+end
+
+yyaxis right
+plot(cvData, "--", "Color", "#D95319", "LineWidth", 1)
+if strcmp(var, 'spike_prob')
+    ylabel("Fano factor")
+else
+    ylabel("CV of network spike count across trials")
+end
+
+yline(plotBaseline, "black", "LineWidth", 2, "Label", "Baseline")
+
+title("Pattern A")
+aesthetics
+
+clear mask trials
+%% Plot Pattern B
+ax2 = nexttile;
+trials = data(maskB,:);
+
+if strcmp(var, 'spike_prob')
+    trials = trials > 0;
+end
+histData = mean(trials,1);
+cvData = std(trials,1) ./ histData;
+
+yyaxis left
+psth = bar(histData, 1); % bars touching
+set(psth,'edgecolor','black','facecolor',"#0072BD");
+xticklabels(xticks*binSize)
+if strcmp(var, 'spike_prob')
+    ylabel("Spike probability")
+else
+    ylabel("Mean network spike count across trials")
+end
+
+yyaxis right
+plot(cvData, "--", "Color", "#D95319", "LineWidth", 1)
+if strcmp(var, 'spike_prob')
+    ylabel("Fano factor")
+else
+    ylabel("CV of network spike count across trials")
+end
+
+yline(plotBaseline, "black", "LineWidth", 2, "Label", "Baseline")
+
+title("Pattern B")
+aesthetics
+
+clear mask trials
+
+%% Format whole figure
+yl1 = ax1.YAxis(1); yr1 = ax1.YAxis(2);
+yl2 = ax2.YAxis(1); yr2 = ax2.YAxis(2);
+linkprop([yl1 yl2], 'Limits');
+linkprop([yr1 yr2], 'Limits');
+xticklabels(xticks*binSize)
+
+xlabel(t,"Time post-stimulus (ms)")
+title(t,"Peri-stimulus Time Histogram")
+
+
+end
