@@ -17,7 +17,7 @@ varLabel = "Spike counts"; % 'Spike rates' | 'Spike probabilities' | 'Spike late
 % Directories
 homeDir = ("D:\MATLAB\MEA-RC");
 cd(homeDir)
-metadataSpreadsheet = "mecp2RecordingsListNew.xlsx";
+metadataSpreadsheet = fullfile(homeDir,'metadata','mecp2RecordingsListNew.xlsx');
 preSpikeDir = 'D:\MATLAB\MEA-NAP\outputs\OutputData06Dec2023\1_SpikeDetection\Pre';
 postSpikeDir = 'D:\MATLAB\MEA-NAP\outputs\OutputData06Dec2023\1_SpikeDetection\Post';
 spikeDir = postSpikeDir;
