@@ -10,6 +10,11 @@
 
 %% Set parameters and import metadata
 
+% Activity state variable
+stateVar = 'spike_count'; % 'spike_rates' | 'spike_prob' | 'latency'
+varLabel = "Spike counts"; % 'Spike rates' | 'Spike probabilities' | 'Spike latencies'
+
+% Directories
 homeDir = ("D:\MATLAB\MEA-RC");
 cd(homeDir)
 metadataSpreadsheet = "mecp2RecordingsListNew.xlsx";
@@ -18,8 +23,8 @@ postSpikeDir = 'D:\MATLAB\MEA-NAP\outputs\OutputData06Dec2023\1_SpikeDetection\P
 spikeDir = postSpikeDir;
 baselineDir = 'D:\MATLAB\MEA-NAP\outputs\OutputData01Nov2023\1_SpikeDetection\1A_SpikeDetectedData';
 voltageDir = 'D:\MATLAB\MEA-NAP\organoids\Nov2023DIV150Stim';
-stateVar = 'spike_count'; %spike_count
-varLabel = "Spike counts";
+figDir = fullfile(homeDir,'figs');
+outputDir = fullfile('C:\Users\elise\Python\ReservoirComputing\data\MEA\organoids',stateVar);
 
 % Metadata
 xlSheet = 'Stim';
@@ -46,8 +51,11 @@ addpath(postSpikeDir)
 % addpath(outputDir)
 addpath spikes
 addpath Functions
-addpath network_response\
-addpath stimArtifactRemoval\
+funcSubFolders = genpath('/Functions');
+addpath(funcSubFolders)
+addpath(figDir)
+figSubFolders = genpath(figDir);
+addpath(figSubFolders);
 addpath("D:\MATLAB\MEA-NAP\Functions")
 
 % Parameters for segmenting recording into trials
@@ -106,12 +114,19 @@ end
 
 %% Plot spike detection results pre- and post-SALPA
 
-methods = {'thr4', 'thr5', 'bior1p5', 'bior1p3', 'db2'};
+saveFigDir = fullfile(figDir, 'stimArtifactRemoval', 'recoveredSpikesWaveforms');
+if ~isfolder(saveFigDir)
+    mkdir(saveFigDir)
+end
+
+methods = {'thr4', 'thr5', 'bior1p5', 'bior1p3', 'db2'}; % spike detection methods used in MEA-NAP
 methodsN = length(methods);
+
 for w = 1:length(windows)
     window = windows{w};
 %     spikeRatios = zeros(length(samples),methodsN);
-
+    
+    disp(['Comparing pre- and post-artifact removal spike detection results: ', window])
     for n = 1:length(samples)
 
         disp(samples{n})
@@ -182,9 +197,13 @@ for w = 1:length(windows)
         clear postSpikeCounts preSpikeCounts
 
         % Plot additional spikes on output electrodes
-        cd stimArtifactRemoval\recoveredSpikesWaveforms
-        mkdir(samples{n})
+        
+        cd(saveFigDir)
+        if ~isfolder(samples{n})
+            mkdir(samples{n})
+        end
         cd(samples{n})
+
         for ch = 1:numel(outputElecs)
             channel = outputElecs(ch);
             t = plotSpikeWaveforms(channel, incSpikes, recovSpikes, postSpikeWaveforms, stimDat.(preFieldName), fs, methods, figPos);
@@ -195,14 +214,16 @@ for w = 1:length(windows)
         
         clear incSpikes recovSpikes stimDat
 
-
-
 %         f = plotSpikeDetectionChecksStim(stimDat, window, preSpikeTimes, postSpikeTimes, stimElecs, outputElecs,... 
 %             times, fs, figPos);
 
     end
 
 end
+
+clear saveFigDir
+
+disp("Finished running section.\n")
 
 %% Merge spike times across spike detection methods
     
@@ -228,6 +249,8 @@ for n = 1:length(samples)
 end
 
 cd(homeDir)
+
+disp("Finished running section.\n")
 
 %% % Get baseline values
 
@@ -298,14 +321,21 @@ end
 
 cd(homeDir)
 
+disp("Finished running section.\n")
+
 %% % Create stimulus-locked trials and get trial activity
+
+% Make folder to save fig
+saveFigDir = fullfile(figDir, 'networkResponse', 'rasterPlot');
+if ~isfolder(saveFigDir)
+    mkdir(saveFigDir)
+end
 
 for w = 1:length(windows)
     window = windows{w};
     windowLength = windowLengths(w); % in frames -- length of window
-    outputDir = fullfile('C:\Users\elise\Python\ReservoirComputing\data\MEA\organoids',stateVar, window);
         
-    disp(['GETTING TRIAL ACTIVITY: ', window])
+    disp(['GETTING TRIAL ACTIVITY: ', window, '\n'])
     
     for n = 1:length(samples)
 
@@ -409,15 +439,14 @@ for w = 1:length(windows)
                 end
         end
         
-        allX.(strcat(stateVar, "_", windows{w})) = x;
+        allX.(strcat(stateVar, "_", window)) = x;
 
         % Save variables
-            
-        try
-            cd(outputDir)
-        catch 'MATLAB:cd:NonExistentFolder'
-            mkdir(outputDir)
+        saveDataDir = fullfile(outputDir,window);
+        if ~isfolder(saveDataDir)
+            mkdir(saveDataDir)
         end
+        cd(saveDataDir)
         
         writematrix(x, strcat(samples{n},".csv"))
         cd(homeDir)
@@ -439,11 +468,10 @@ for w = 1:length(windows)
         end
         mask = patternSeq == 0;
         p = plotTrialRaster(x',mask, ["Pattern A", "Pattern B"], varLabel,figPos);
-        cd .\network_response\Raster_plots
-        saveas(p,samples{n},'png')
+        cd(saveFigDir)
+        saveas(p,samples{n},'_trial_raster_',window,'.png')
         close all
         cd(homeDir)
-
 
 %         % Plot PSTH
 %         % get baseline
@@ -474,7 +502,9 @@ for w = 1:length(windows)
 
 end
         
-clear x allX mergedSpikeTimes mergedSpikeTimesFrames psthData
+clear x allX mergedSpikeTimes mergedSpikeTimesFrames psthData saveFigDir
+
+disp("Finished running section.\n")
 
 %% Plot trial-stacked raster plot
 
@@ -565,6 +595,12 @@ end
 
 %% Plot heatmaps
 
+% Make folder to save fig
+saveFigDir = fullfile(figDir, 'heatmaps', stateVar);
+if ~isfolder(saveFigDir)
+    mkdir(saveFigDir)
+end
+
 for w = 1:length(windows)
 
     windowLength = windowLengths(w);
@@ -615,19 +651,24 @@ for w = 1:length(windows)
         % Plot heatmap
 %         f = electrodeHeatMapsEC(samples{n},NaN,datA,datB,removeElecs,channels,coords);
         f = plotMEAHeatMap(datA,datB,removeElecs,stateVar,["Pattern A", "Pattern B"],minVal,maxVal);
-        cd network_response\heatmaps\DIV150Organoids
-        if not(isfolder(stateVar))
-            mkdir(stateVar)
-        end
-        cd(stateVar)
-        saveas(f,strcat(samples{n},'_',stateVar,'.png'))
+        cd(saveFigDir)
+        saveas(f,strcat(samples{n},'_',stateVar,'_',window,'pattern_comparison.png'))
         cd(homeDir)
         close all
     end        
     clear allX x
 end
+clear saveFigDir
+
+disp("Finished running section.\n")
 
 %% Plot pre- and post-stim heatmaps
+
+% Make folder to save fig
+saveFigDir = fullfile(figDir, 'heatmaps', stateVar);
+if ~isfolder(saveFigDir)
+    mkdir(saveFigDir)
+end
 
 for n = 1:length(samples)
     
@@ -642,12 +683,19 @@ for n = 1:length(samples)
     % Plot heatmap
     %TODO: change to highlight/remove electrodes
     f = plotMEAHeatMap(preStimChSpikeProb,postStimChSpikeProb,groundElecIdx,samples{n},'p');
-    cd .\network_response\heatmaps
-    saveas(f,strcat(samples{n},'_pre_vs_post-stim.png'))
+    cd(saveFigDir)
+    saveas(f,strcat(samples{n},'_',stateVar,'_',window,'_pre_vs_post-stim.png'))
     cd(homeDir)
     close all
-end        
-clear groundElecIdx preStimChSpikeRate postStimChSpikeRate
+
+    clear groundElecIdx preStimChSpikeRate postStimChSpikeRate
+
+end
+
+clear saveFigDir
+
+disp("Finished running section.\n")
+
 
 %% Plot distances between activity state matrices
 % 

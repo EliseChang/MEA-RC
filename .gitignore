@@ -7,3 +7,6 @@
 # Ignore metadata spreadsheets and stimuli
 /metadata
 /stimuli
+
+# Ignore plot outputs
+/figs
