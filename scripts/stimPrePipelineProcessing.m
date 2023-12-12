@@ -19,14 +19,14 @@ dataDir = 'D:\MATLAB\MEA-NAP\organoids\Nov2023DIV150Stim'; % "E:\231102_Mecp2_or
 % Metadata -- see example spreadsheet
 xlSheet = 'Stim';
 xlRange = 'A2:M11';
-spreadsheetDir = "D:\MATLAB\MEA-NAP";
+spreadsheetDir = "D:\MATLAB\MEA-NAP\metadata";
 [num,txt,~] = xlsread(fullfile(spreadsheetDir,metadataSpreadsheet),xlSheet,xlRange);
 samples = txt(:,1);
 
 % Paths
 addpath(dataDir)
 addpath(genpath("Functions"))
-figDir = fullfile(homeDir, "stimArtifactRemoval");
+figDir = fullfile('figs', "stimArtifactRemoval");
 addpath(figDir)
 
 % Parameters for segmenting recording into trials
@@ -37,8 +37,9 @@ fs = 25e3;
 ISI = 1*fs; % inter-stimulus interval
 framesN = trialsN*ISI;
 lostTime = 3e-3*fs; % for SALPA algorithm -- but note this is still included in trial
-trialLength = 100e-3*fs; % in frames
-window = '0_100ms';
+trialStartFrame = 160e-3*fs;
+trialLength = 40e-3*fs; % in frames
+window = '160_200ms';
 
 % idealised stimulation times -- will be adjusted
 stimLength = 5; % number of frames
@@ -57,7 +58,7 @@ preStimFile = txt(:,12);
 postStimFile = txt(:,13);
 
 % NOTE: currently 0 = A and 1 = B
-stimProt = double(~readmatrix("MeCP2OrgStimProt1.csv"));
+stimProt = double(~readmatrix(fullfile('stimuli', "MeCP2OrgStimProt1.csv")));
 stimProt(1) = []; % remove first element due to zero-indexing
 
 figPos = [1 49 1920 955];
@@ -67,7 +68,7 @@ figPos = [1 49 1920 955];
 load("channels.mat")
 fs = 25e3;
 
-for n = 3:length(samples)
+for n = 1:length(samples)
     
     cd(dataDir)
     load(strcat(samples{n},'.mat'))
@@ -148,7 +149,7 @@ for n = 3:length(samples)
     xlabel(t,"Sampling frame")
     ylabel(t, "Voltage")
     aesthetics
-    cd stimArtifactRemoval\firstArtifact
+    cd figs\stimArtifactRemoval\firstArtifact
     saveas(t, samples{n}, 'png')
     cd(homeDir)
     close all
@@ -204,14 +205,14 @@ for n = 1:length(samples)
     cd(homeDir)
     disp(samples{n})
     
-    if stimTimes(end) + trialLength > framesN
+    if stimTimes(end) + trialStartFrame + trialLength > framesN
         disp("Final trial exceeds recording length. Remove trials.")
         continue
     end
 
     mask = zeros(length(centredDat),1);
     for s = 1:length(stimTimes)
-        trialStart = stimTimes(s);
+        trialStart = stimTimes(s) + trialStartFrame;
         trialEnd = trialStart + trialLength - 1;
         mask(trialStart:trialEnd) = 1;
     end

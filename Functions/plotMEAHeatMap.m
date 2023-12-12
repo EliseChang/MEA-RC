@@ -80,7 +80,11 @@ else
     cmin = min([dat1,dat2],[],'all');
     cmax = max([dat1,dat2],[],'all');
 end
-set(h, 'Colormap', parula, 'CLim', [cmin cmax])
+if strcmp(metric, 'latency')
+    set(h, 'Colormap', gray, 'CLim', [cmin cmax])
+else
+    set(h, 'Colormap', parula, 'CLim', [cmin cmax])
+end
 
 % Set colour bar properties
 cb = colorbar;
@@ -99,6 +103,8 @@ elseif strcmp(metric,'foldChangeStim')
     ylabel(cb,'Fold change in firing rate vs baseline')
 elseif strcmp(metric,'foldChangePostStim')
     ylabel(cb,'Fold change in firing rate post- vs pre-stim')
+elseif strcmp(metric,'foldChangePostSALPA')
+    ylabel(cb,'Fold change in spike count post- vs pre-artifact removal')
 elseif strcmp(metric, 'spike_count')
     %ylabel(cb, 'Log10 spike count')   
     ylabel(cb, 'Mean spike counts')
