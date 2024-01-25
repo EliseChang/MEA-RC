@@ -11,16 +11,16 @@
 %% Set parameters and import metadata
 
 % Activity state variable
-stateVar = 'latency'; % 'spike_rates' | 'spike_count' | 'spike_prob' | 'latency'
-varLabel = "Spike latencies"; % 'Spike rates' | 'Spike counts' | 'Spike probabilities' | 'Spike latencies'
+stateVar = 'spike_count'; % 'spike_rates' | 'spike_count' | 'spike_prob' | 'latency'
+varLabel = "Spike counts"; % 'Spike rates' | 'Spike counts' | 'Spike probabilities' | 'Spike latencies'
 
 % Directories
 homeDir = ("D:\MATLAB\MEA-RC");
 cd(homeDir)
 metadataSpreadsheet = 'mecp2RecordingsListNew.xlsx'; % file name
 spreadsheetDir = "D:\MATLAB\MEA-NAP\metadata";
-preSpikeDir = 'D:\MATLAB\MEA-NAP\outputs\OutputData11Dec2023\1_SpikeDetection\1A_SpikeDetectedData\Pre';
-postSpikeDir = 'D:\MATLAB\MEA-NAP\outputs\OutputData11Dec2023\1_SpikeDetection\1A_SpikeDetectedData\Post';
+preSpikeDir = 'D:\MATLAB\MEA-NAP\outputs\OutputData08Jan2024\1_SpikeDetection\1A_SpikeDetectedData\Pre';
+postSpikeDir = 'D:\MATLAB\MEA-NAP\outputs\OutputData08Jan2024\1_SpikeDetection\1A_SpikeDetectedData\Post';
 spikeDir = postSpikeDir;
 baselineDir = 'D:\MATLAB\MEA-NAP\outputs\OutputData01Nov2023\1_SpikeDetection\1A_SpikeDetectedData';
 voltageDir = 'D:\MATLAB\MEA-NAP\organoids\Nov2023DIV150Stim';
@@ -30,7 +30,7 @@ RCOutputDir = fullfile('C:\Users\elise\Python\ReservoirComputing\data\MEA\organo
 
 % Metadata
 xlSheet = 'Stim';
-xlRange = 'A2:M11';
+xlRange = 'A2:M4';
 [num,txt,~] = xlsread(fullfile(spreadsheetDir,metadataSpreadsheet),xlSheet,xlRange);
 samples = txt(:,1); % name of sample
 ages = num(:,1);
@@ -47,7 +47,7 @@ preStimFile = txt(:,12);
 postStimFile = txt(:,13);
 
 % Paths
-addpath(preSpikeDir)
+% addpath(preSpikeDir)
 addpath(postSpikeDir)
 % addpath(outputDir)
 addpath spikes
@@ -66,9 +66,9 @@ preStimRecLength = 600; % in secs
 postStimRecLength = 300; % in secs
 minFiringRate = 0.02; % minimum firing rate for baseline activity
 
-windows = {'0_40ms','40_80ms','80_120ms','120_160ms','160_200ms'}; % {'window0_20','window20_40','window40_60','window60_80','window80_100','window100_120','window120_140','window140_160','window160_180'};
+windows = {'0_40ms'}; % '0_80ms','0_120ms','0_160ms',  {'window0_20','window20_40','window40_60','window60_80','window80_100','window100_120','window120_140','window140_160','window160_180'};
 % window_start_frames = 1; % [3*1e-3*fs, 20*1e-3*fs]; % :20*1e-3*fs:180*1e-3*fs;
-windowLengths = [40e-3*fs, 40e-3*fs, 40e-3*fs, 40e-3*fs, 40e-3*fs]; % [17*1e-3*fs, 80*1e-3*fs];
+windowLengths = [40e-3*fs]; % [40e-3*fs, 80e-3*fs, 120e-3*fs, 160e-3*fs]; % 200e-3*fs [17*1e-3*fs, 80*1e-3*fs];
 lostTime = 3e-3*fs; 
 
 % Load in stimulation protocol
@@ -124,7 +124,7 @@ methodsN = length(methods);
 for w = 1:length(windows)
     window = windows{w};
 %     spikeRatios = zeros(length(samples),methodsN); % stores ratio of post:pre-SALPA spike rates for each method
-    spikeRatios = zeros(channelsN,length(samples));
+    spikeRatios = zeros(methodsN,length(samples));
     disp(['Comparing pre- and post-artifact removal spike detection results: ', window])
     for n = 1:length(samples)
 
@@ -140,14 +140,13 @@ for w = 1:length(windows)
         % Load spike time data
         cd(preSpikeDir)
         preSpikeTimes = load(strcat(samples{n},'_spikes_',window,'.mat'), 'spikeTimes').spikeTimes;
-        preSpikeWaveforms = load(strcat(samples{n},'_spikes_',window,'.mat'), 'spikeWaveforms').spikeWaveforms;
+%         preSpikeWaveforms = load(strcat(samples{n},'_spikes_',window,'.mat'), 'spikeWaveforms').spikeWaveforms;
         cd(homeDir)
 
         cd(postSpikeDir)
         postSpikeTimes = load(strcat(samples{n},'_spikes_',window,'.mat'), 'spikeTimes').spikeTimes;
-        postSpikeWaveforms = load(strcat(samples{n},'_spikes_',window,'.mat'), 'spikeWaveforms').spikeWaveforms;
+%         postSpikeWaveforms = load(strcat(samples{n},'_spikes_',window,'.mat'), 'spikeWaveforms').spikeWaveforms;
         cd(homeDir)
-        clear spikeTimes
 
         % Adjust stim prot as needed
         startTrialIdx = startTrial(n);
@@ -180,22 +179,24 @@ for w = 1:length(windows)
         lostSpikeMask = cell(1, channelsN); % initialise cell array to store masks of the unique pre-SALPA spikes
         lostSpikeTimes = cell(1, channelsN); % initialise cell array to store times of the unique pre-SALPA spikes
 
-%         preSpikeCounts = zeros(1, methodsN); % initialise vector to store spike counts by method
-%         postSpikeCounts = zeros(1, methodsN); % initialise vector to store spike counts by method
+        preSpikeCounts = zeros(1, methodsN); % initialise vector to store spike counts by method
+        postSpikeCounts = zeros(1, methodsN); % initialise vector to store spike counts by method
        
+        combinedSpikeTimes = cell(1, channelsN);
         for ch = 1:channelsN
             [preMergedSpikes,~, ~] = mergeSpikes(preSpikeTimes{ch}, 'all');
             preSpikeChCount = numel(preMergedSpikes);
             [postMergedSpikes,~, ~] = mergeSpikes(postSpikeTimes{ch}, 'all');
             postSpikeChCount = numel(postMergedSpikes);
-            spikeRatios(ch,n) = postSpikeChCount / preSpikeChCount;
+%             spikeRatios(ch,n) = postSpikeChCount / preSpikeChCount;
             for m = 1:methodsN
                 method = methods{m};
                 preSpikes = preSpikeTimes{ch}.(method);
                 postSpikes = postSpikeTimes{ch}.(method);
+                 
 %                 % Running total of spikes counts across electrode for each method
-%                 preSpikeCounts(m) = preSpikeCounts(m) + numel(preSpikes);
-%                 postSpikeCounts(m) = postSpikeCounts(m) + numel(postSpikes);
+                preSpikeCounts(m) = preSpikeCounts(m) + numel(preSpikes);
+                postSpikeCounts(m) = postSpikeCounts(m) + numel(postSpikes);
 
                 % Check if any 'recovered' spikes have been jittered by +/- 0.5 ms
                 checkSpikes = ~ismember(postSpikes,preSpikes);
@@ -223,16 +224,18 @@ for w = 1:length(windows)
                 end
                 lostSpikeMask{1, ch}.(method) = checkSpikes;
                 lostSpikeTimes{1, ch}.(method) = preSpikes(checkSpikes); % actual times of additional spikes
-                % TODO: Add these lost spike times to the post-SALPA spikeTime struct
+                % Add these lost spike times to the combinedSpikeTime struct
                 if any(checkSpikes)
-                    postSpikeTimes{ch}.(method) = sort([postSpikes; preSpikes(checkSpikes)]);
+                    combinedSpikeTimes{ch}.(method) = sort([postSpikes; preSpikes(checkSpikes)]);
+                else
+                    combinedSpikeTimes{ch}.(method) = postSpikes;
                 end
                 clear checkSpikes preSpikes postSpikes
             end
         end
 
-%         spikeRatios(n,:) = postSpikeCounts ./ preSpikeCounts;
-%         clear postSpikeCounts preSpikeCounts
+        spikeRatios(:,n) = postSpikeCounts ./ preSpikeCounts;
+        clear postSpikeCounts preSpikeCounts
 
 %         % Plot recovered spikes on output electrodes
 %         cd(saveFigDir)
@@ -271,11 +274,10 @@ for w = 1:length(windows)
 %         cd(homeDir)
         
         cd(postSpikeDir)
-        combinedSpikeTimes = postSpikeTimes;
         save(strcat(samples{n},'_spikes_',window,'.mat'), 'combinedSpikeTimes', '-append')
         cd(homeDir)
         
-        clear preSpikeTimes postSpikeTImes recovSpikeMask lostSpikeMask recovSpikeTimes lostSpikeTimes combinedSpikeTimes stimDat preSpikeWaveforms postSpikeWaveforms
+        clear preSpikeTimes postSpikeTimes recovSpikeMask lostSpikeMask recovSpikeTimes lostSpikeTimes combinedSpikeTimes stimDat preSpikeWaveforms postSpikeWaveforms postSpikeTimes
 
 %         f = plotSpikeDetectionChecksStim(stimDat, window, preSpikeTimes, postSpikeTimes, stimElecs, outputElecs,... 
 %             times, fs, figPos);
@@ -298,16 +300,41 @@ clear saveFigDir
 disp("Finished running section", newline)
 
 %% Merge spike times across spike detection methods
-    
-cd(preSpikeDir)
+
 disp("MERGING SPIKES")
+% cd(preSpikeDir)
+
+% for w = 1:length(windows)
+%     window = windows{w};
+% 
+%     for n = 1:length(samples)
+%         spikeTimes = load(strcat(samples{n},'_spikes_',window,'.mat'), 'spikeTimes').spikeTimes;
+%         disp(samples{n})
+%     
+%         mergedSpikeTimes = cell(1,channelsN);
+%     
+%         for ch = 1:channelsN
+%             [mergedSpikes,~, ~] = mergeSpikes(spikeTimes{ch}, 'all'); % in seconds
+%             mergedSpikeTimes{1,ch} = mergedSpikes;
+%             clear mergedSpikes
+%         end
+%     
+%         save(strcat(samples{n},'_spikes_',window,'.mat'), "mergedSpikeTimes", "-append")
+%         clear spikeDetectionResult spikeTimes mergedSpikeTimes spikeWaveforms thresholds
+%     
+%     end
+% end
+% 
+% cd(homeDir)
+
+cd(postSpikeDir)
 
 for w = 1:length(windows)
     window = windows{w};
-
     for n = 1:length(samples)
     
-        spikeTimes = load(strcat(samples{n},'_spikes_',window,'.mat'), 'spikeTimes').spikeTimes;
+        spikeTimes = load(strcat(samples{n},'_spikes_',window,'.mat'), 'combinedSpikeTimes').combinedSpikeTimes;
+
         disp(samples{n})
     
         mergedSpikeTimes = cell(1,channelsN);
@@ -366,7 +393,7 @@ for n = 1:length(samples)
     spikeTimes = load(strcat(postStimFile{n},'_spikes.mat'), 'spikeTimes').spikeTimes;
     mergedSpikeTimes = cell(1,channelsN);
     for ch = 1:channelsN
-        [mergedSpikes,~, ~] = mergeSpikes(spikeTimes{ch}, 'all'); % in seconds
+       [mergedSpikes,~, ~] = mergeSpikes(spikeTimes{ch}, 'all'); % in seconds
         mergedSpikeTimes{1,ch} = mergedSpikes;
         clear mergedSpikes
     end
@@ -385,7 +412,7 @@ for n = 1:length(samples)
 %     postStimChSpikeProb = channelSpikeCounts / postStimRecLength * 1e-3;
     clear spikeTimes mergedSpikeTimes totalSpikes binnedNetSpikeCounts
     
-    cd(spikeDir)
+    cd(activityOutputDir)
     try
         save(strcat(samples{n},'_spikes.mat'),'preStimNetSpikeCount','preStimNetSpikeRate','preStimNetSpikeProb', ...
             'postStimNetSpikeCount', 'postStimNetSpikeRate','postStimNetSpikeProb','-append');
@@ -424,15 +451,17 @@ for w = 1:length(windows)
         trialOffT = windowLength:windowLength:framesN;
             
         cd(spikeDir)
-        load(strcat(samples{n},'_spikes_',window,'.mat'), 'mergedSpikeTimes')
+        % TEMP
+        load(strcat(samples{n},'_spikes_0_200ms.mat'), 'mergedSpikeTimes')
+%         load(strcat(samples{n},'_spikes_',window,'.mat'), 'mergedSpikeTimes')
         cd(homeDir)
 
-        cd(activityOutputDir)
-        load(strcat(samples{n},'_spikes.mat'));
-        if ~exist('allX','var')
+%         cd(activityOutputDir)
+%         load(strcat(samples{n},'_spikes.mat'));
+%         if ~exist('allX','var')
             allX = struct();
-        end
-        cd(homeDir)
+%         end
+%         cd(homeDir)
        
         disp(samples{n})
         
@@ -477,10 +506,10 @@ for w = 1:length(windows)
     
             start = trialOnT(trial);
             stop = trialOffT(trial);
-            if ~strcmp(stateVar, 'latency')
-                % define PSTH bins
-                binEdges = start:psthBin:stop;
-            end
+%             if ~strcmp(stateVar, 'latency')
+%                 % define PSTH bins
+%                 binEdges = start:psthBin:stop;
+%             end
                 
             for ch = 1:channelsN
     
@@ -769,7 +798,66 @@ if ~isfolder(saveFigDir)
     mkdir(saveFigDir)
 end
 
+% for w = 1:length(windows)
 data = zeros(length(samples),length(windows)*2);
+colsB = [1:length(windows)]*2;
+colsA = colsB - 1;
+
+for w = 1:length(windows)
+
+    windowLength = windowLengths(w);
+
+    for n = 1:length(samples)
+        
+        disp(samples{n})
+                
+        % Get activity
+        cd(activityOutputDir)
+        allX = load(strcat(samples{n},'_spikes.mat'), 'allX').allX;
+        cd(homeDir)
+        
+        % Get stim nodes
+        patternAStimIdx = getElectrodeIdx(str2num(patternAStimID{n}));
+        patternBStimIdx = getElectrodeIdx(str2num(patternBStimID{n}));
+        groundElecIdx = getElectrodeIdx(str2num(groundElecID{n})); %#ok<ST2NM>
+        removeElecs = [patternAStimIdx,patternBStimIdx,groundElecIdx];
+
+        % If needed, rearrange trial order in stimProt
+        startTrialIdx = startTrial(n);
+        endTrialIdx = endTrial(n);
+        shiftTrials = circShift(n);
+        if ~isnan(shiftTrials)
+            patternSeq = circshift(stimProt, trialsN - shiftTrials);
+            patternSeq = patternSeq(startTrialIdx:endTrialIdx);
+        else
+            patternSeq = stimProt(startTrialIdx:endTrialIdx);
+        end
+
+        x = allX.(strcat('spike_count', "_", windows{w}));
+
+        maskA = patternSeq == 0;
+        maskB = patternSeq == 1;
+        datA = mean(x(maskA,:),"all");
+        datB = mean(x(maskB,:),"all");
+        data(n,colsA(w)) = datA;
+        data(n,colsB(w)) = datB;
+    end        
+    clear allX x
+end
+clear saveFigDir
+
+disp("Finished running section", newline)
+
+%% Compare windows
+
+% Make folder to save fig
+saveFigDir = fullfile(figDir, 'networkResponse', 'windowComparisons', stateVar);
+if ~isfolder(saveFigDir)
+    mkdir(saveFigDir)
+end
+
+% for w = 1:length(windows)
+data = zeros(length(samples),trialsN);
 colsB = [1:length(windows)]*2;
 colsA = colsB - 1;
 

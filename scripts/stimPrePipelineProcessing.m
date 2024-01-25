@@ -37,9 +37,9 @@ fs = 25e3;
 ISI = 1*fs; % inter-stimulus interval
 framesN = trialsN*ISI;
 lostTime = 3e-3*fs; % for SALPA algorithm -- but note this is still included in trial
-trialStartFrame = 160e-3*fs;
-trialLength = 40e-3*fs; % in frames
-window = '160_200ms';
+trialStartFrames = [0, 0, 0, 0];
+trialLengths = [80e-3*fs, 120e-3*fs, 160e-3*fs, 200e-3*fs]; % in frames
+windows = {'0_80ms','0_120ms','0_160ms','0_200ms'};
 
 % idealised stimulation times -- will be adjusted
 stimLength = 5; % number of frames
@@ -192,57 +192,64 @@ end
 
 %% Get stimulation cut-outs across all electrodes and trials and run SALPA
 
-for n = 1:length(samples)
+for w = 1:length(windows)
+    window = windows{w};
+    trialStartFrame = trialStartFrames(w);
+    trialLength = trialLengths(w);
+
+    for n = 1:length(samples)
+        
+        cd(dataDir)
+        centredDat = load(strcat(samples{n},'.mat'), 'centredDat').centredDat;
+        stimTimes = load(strcat(samples{n},'.mat'), 'stimTimes').stimTimes;
+        try
+            stimDat = load(strcat(samples{n},'.mat'), 'stimDat').stimDat;
+        catch
+            stimDat = struct;
+        end
+        cd(homeDir)
+        disp(samples{n})
+        
+        if stimTimes(end) + trialStartFrame + trialLength > framesN
+            disp("Final trial exceeds recording length. Remove trials.")
+            continue
+        end
     
-    cd(dataDir)
-    centredDat = load(strcat(samples{n},'.mat'), 'centredDat').centredDat;
-    stimTimes = load(strcat(samples{n},'.mat'), 'stimTimes').stimTimes;
-    try
-        stimDat = load(strcat(samples{n},'.mat'), 'stimDat').stimDat;
-    catch
-        stimDat = struct;
-    end
-    cd(homeDir)
-    disp(samples{n})
+        mask = zeros(length(centredDat),1);
+        for s = 1:length(stimTimes)
+            trialStart = stimTimes(s) + trialStartFrame;
+            trialEnd = trialStart + trialLength - 1;
+            mask(trialStart:trialEnd) = 1;
+        end
+        cutoutDat = centredDat(logical(mask),:);
+        fieldName = strcat('preSALPA',window);
+        stimDat.(fieldName) = cutoutDat;
+        clear fieldName
     
-    if stimTimes(end) + trialStartFrame + trialLength > framesN
-        disp("Final trial exceeds recording length. Remove trials.")
-        continue
+        % get stimulation electrodes used for each pattern and ground electrodes
+        patternAStimIdx = getElectrodeIdx(str2num(patternAStimID{n})); %#ok<ST2NM> 
+        patternBStimIdx = getElectrodeIdx(str2num(patternBStimID{n})); %#ok<ST2NM>
+        stimElecs = [patternAStimIdx,patternBStimIdx];
+        groundElecIdx = getElectrodeIdx(str2num(groundElecID{n})); %#ok<ST2NM> 
+        excludeElecs = [patternAStimIdx;patternBStimIdx;groundElecIdx];
+    
+        % Run SALPA
+        % set new trial times after 'cutting out' data
+        newFramesN = length(cutoutDat);
+        newTrialTOn = 1:trialLength:newFramesN;
+        newTrialTOff = [newTrialTOn(2:end)-1, newFramesN];
+        tic
+        filteredDat = runSALPA(cutoutDat, excludeElecs, lostTime, trialLength, newTrialTOn, newTrialTOff);
+        toc
+        fieldName = strcat('postSALPA',window);
+        stimDat.(fieldName) = filteredDat;
+    
+        cd(dataDir)
+        save(strcat(samples{n},'.mat'), 'stimDat', '-append')
+        cd(homeDir)
+    
+        clear dat filteredDat stimTimes stimDat
+
     end
-
-    mask = zeros(length(centredDat),1);
-    for s = 1:length(stimTimes)
-        trialStart = stimTimes(s) + trialStartFrame;
-        trialEnd = trialStart + trialLength - 1;
-        mask(trialStart:trialEnd) = 1;
-    end
-    cutoutDat = centredDat(logical(mask),:);
-    fieldName = strcat('preSALPA',window);
-    stimDat.(fieldName) = cutoutDat;
-    clear fieldName
-
-    % get stimulation electrodes used for each pattern and ground electrodes
-    patternAStimIdx = getElectrodeIdx(str2num(patternAStimID{n})); %#ok<ST2NM> 
-    patternBStimIdx = getElectrodeIdx(str2num(patternBStimID{n})); %#ok<ST2NM>
-    stimElecs = [patternAStimIdx,patternBStimIdx];
-    groundElecIdx = getElectrodeIdx(str2num(groundElecID{n})); %#ok<ST2NM> 
-    excludeElecs = [patternAStimIdx;patternBStimIdx;groundElecIdx];
-
-    % Run SALPA
-    % set new trial times after 'cutting out' data
-    newFramesN = length(cutoutDat);
-    newTrialTOn = 1:trialLength:newFramesN;
-    newTrialTOff = [newTrialTOn(2:end)-1, newFramesN];
-    tic
-    filteredDat = runSALPA(cutoutDat, excludeElecs, lostTime, trialLength, newTrialTOn, newTrialTOff);
-    toc
-    fieldName = strcat('postSALPA',window);
-    stimDat.(fieldName) = filteredDat;
-
-    cd(dataDir)
-    save(strcat(samples{n},'.mat'), 'stimDat', '-append')
-    cd(homeDir)
-
-    clear dat filteredDat stimTimes stimDat
 
 end
