@@ -37,9 +37,9 @@ fs = 25e3;
 ISI = 1*fs; % inter-stimulus interval
 framesN = trialsN*ISI;
 lostTime = 3e-3*fs; % for SALPA algorithm -- but note this is still included in trial
-trialStartFrames = [0, 0, 0, 0];
-trialLengths = [80e-3*fs, 120e-3*fs, 160e-3*fs, 200e-3*fs]; % in frames
-windows = {'0_80ms','0_120ms','0_160ms','0_200ms'};
+trialStartFrames = [0, 0, 0, 0, 0];
+trialLengths = [40e-3*fs, 80e-3*fs, 120e-3*fs, 160e-3*fs, 200e-3*fs]; % in frames
+windows = {'0_40ms', '0_80ms','0_120ms','0_160ms','0_200ms'};
 
 % idealised stimulation times -- will be adjusted
 stimLength = 5; % number of frames
@@ -89,16 +89,6 @@ for n = 1:length(samples)
     stimElecs = [patternAStimIdx,patternBStimIdx];
     groundElecIdx = getElectrodeIdx(str2num(groundElecID{n})); %#ok<ST2NM> 
     excludeElecs = [patternAStimIdx;patternBStimIdx;groundElecIdx];
-
-%     % check trial sequence
-%     for e = 1:length(stimElecs)
-%         plot(dat(:,e))
-%         TODO: save these
-%         shiftTrials = input("Enter the actual index of the final trial: ")
-%         startTrialIdx = input("Enter start trial: ")
-%         endTrialIdx = input("Enter end trial: ")
-%         close all
-%     end
 
     % Adjust stim prot as needed
     shiftTrials = circShift(n);
@@ -153,33 +143,6 @@ for n = 1:length(samples)
     saveas(t, samples{n}, 'png')
     cd(homeDir)
     close all
-    
-%     % For selected electrode in each pattern, find artifact times
-%     stimT = zeros(trialsN/patternsN,patternsN); % store actual trial times for each pattern
-%     trialGuides = trialOnT + startFrames(p); % idealised trial times
-%     for p = 1:patternsN
-%         % get trials
-%         mask = patternSeq == p-1;
-%         fprintf('Pattern %d: Electrode %d \n',p,lockToElecs(p));
-%         chDat = centredDat(:,lockToElecs(p));
-%         adjust = 'y';
-%         while ~isempty(adjust)
-%             plot(chDat)
-%             xline(trialGuides(mask))
-%             thr = input("Enter minimum peak amplitude for stimulus artifacts: ");
-%             [peaks,locs] = findpeaks(chDat,"NPeaks",trialsN/patternsN,"MinPeakHeight",thr,"MinPeakDistance",ISI*0.75);
-%             hold on
-%             scatter(locs,peaks,'v')
-%             hold off
-%             adjust = input("Check stimulus artifact identification. Enter 1 to adjust threshold, otherwise no input required. ");
-%             close all
-%         end
-%         clear chDat
-%         stimT(:,p) = locs;
-%     end
-%     stimTimes = sort(reshape(stimT,[trialsN,1]));
-%     fprintf("ISIs: %d", diff(stimTimes))
-%     pause
 
     stimTimes = trialOnT + startFrame;
     stimTimes = stimTimes(startTrialIdx:endTrialIdx);

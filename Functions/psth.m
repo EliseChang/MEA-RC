@@ -16,7 +16,8 @@ trials = data(mask,:);
 if strcmp(var, 'spike_prob')
     trials = trials > 0;
 end
-histData = mean(trials,1);
+activeTrials = trials(sum(trials,2) ~= 0, :);
+histData = mean(activeTrials,1);
 % cvData = std(trials,1) ./ histData;
 
 % yyaxis left
@@ -50,7 +51,8 @@ trials = data(~mask,:);
 if strcmp(var, 'spike_prob')
     trials = trials > 0;
 end
-histData = mean(trials,1);
+activeTrials = trials(sum(trials,2) ~= 0, :);
+histData = mean(activeTrials,1);
 % cvData = std(trials,1) ./ histData;
 
 % yyaxis left
